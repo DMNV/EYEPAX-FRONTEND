@@ -5,11 +5,13 @@ import '../loanCal.css'
 
 function LoanCalculator() {
     const [calculationTypeData, setCalculationTypeData] = useState([]);
-    const [monthPaymentData, setMonthPaymentData] = useState('');
-    const [loanAmountData, setLoanAmountData] = useState(10.00);
-    const [interestRateData, setInterestRateData] = useState(10.00);
-    const [noPaymentsData, setNoPaymentsData] = useState(10);
+    const [selected, setSelected] = useState(0);
+    const [monthPaymentData, setMonthPaymentData] = useState(0);
+    const [loanAmountData, setLoanAmountData] = useState('');
+    const [interestRateData, setInterestRateData] = useState('');
+    const [noPaymentsData, setNoPaymentsData] = useState('');
     const [isSending, setIsSending] = useState(false);
+
     useEffect(() => {
         axios.get(`https://localhost:44357/Calculation`)
             .then(res => {
@@ -18,31 +20,62 @@ function LoanCalculator() {
             })
     }, [])
 
-
-    const handleSubmit = () => {
-        // don't send again while we are sending
-        if (isSending)
-            return
-
-        setIsSending(true)
-        alert("handleSubmit");
-        setIsSending(false)
-    };
-
     const handleLoanAmount = (e) => {
-        setLoanAmountData(e.target.value);
+        if (numberValidation(e.target.value))
+            setLoanAmountData(e.target.value);
     }
 
     const handleInterestRate = (e) => {
-        setInterestRateData(e.target.value);
+        if (numberValidation(e.target.value))
+            setInterestRateData(e.target.value);
     }
 
     const handleNoPayments = (e) => {
-        setNoPaymentsData(e.target.value);
+        if (numberValidation(e.target.value))
+            setNoPaymentsData(e.target.value);
     }
 
-    const clearAll = () => {
-        setMonthPaymentData('')
+    const numberValidation = (value) => {
+        const re = /^[0-9\b]+$/;
+        if (value === '' || re.test(value))
+            return true;
+    }
+
+    const validation = () => {
+        let state = true;
+        console.log(selected, loanAmountData, interestRateData, noPaymentsData);
+        if (selected === 0 || loanAmountData === '' || interestRateData === '' || noPaymentsData === '')
+            state = false;
+
+        return state;
+    }
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        // don't send again while we are sending
+        let val = validation();
+        if (!isSending && val) {
+            setIsSending(true)
+            await axios.post(`https://localhost:44357/Calculation`, {
+                calculationType: selected,
+                loanAmount: parseFloat(loanAmountData),
+                rate: parseFloat(interestRateData),
+                noPayments: parseInt(noPaymentsData)
+            }).then((response) => {
+                if (response.status === 200) {
+                    setMonthPaymentData(response.data);
+
+                }
+            }).catch((error) => {
+                console.log(error.response.data.error);
+            })
+            setIsSending(false)
+        }
+    };
+
+    const clearAll = (e) => {
+        e.preventDefault();
+        setMonthPaymentData(0)
         setLoanAmountData('')
         setInterestRateData('')
         setNoPaymentsData('')
@@ -54,10 +87,12 @@ function LoanCalculator() {
             <form>
                 <Row>
                     <Col className='line-padding'>
-                        <FormLabel> Calculation Type</FormLabel>
+                        <FormLabel>Calculation Type<span className='error'>*</span></FormLabel>
                     </Col>
                     <Col xs={8}>
-                        <FormSelect aria-label="Default select example">
+                        <FormSelect aria-label="Default select example"
+                            value={selected}
+                            onChange={(e) => setSelected(e.target.value)}>
                             <option>Please select calculation type</option>
                             {calculationTypeData.map((opt) => (
                                 <option key={opt.id} value={opt.id}>{opt.name}</option>
@@ -67,39 +102,39 @@ function LoanCalculator() {
                 </Row>
                 <Row>
                     <Col className='line-padding'>
-                        <FormLabel> Loan Amount (Principle)</FormLabel>
+                        <FormLabel>Loan Amount (Principle)<span className='error'>*</span></FormLabel>
                     </Col>
                     <Col xs={8}>
-                        <Form.Control type="text" value={loanAmountData} onChange={(e) => handleLoanAmount(e)} />
+                        <Form.Control type="text" value={loanAmountData} onChange={(e) => handleLoanAmount(e)} required />
                     </Col>
                 </Row>
                 <Row>
                     <Col className='line-padding'>
-                        <FormLabel>Interest Rate</FormLabel>
+                        <FormLabel>Interest Rate<span className='error'>*</span></FormLabel>
                     </Col>
                     <Col xs={8}>
-                        <Form.Control type="text" value={interestRateData} onChange={(e) => handleInterestRate(e)} />
+                        <Form.Control type="text" value={interestRateData} onChange={(e) => handleInterestRate(e)} required />
                     </Col>
                 </Row>
                 <Row>
                     <Col className='line-padding'>
-                        <FormLabel>No of Payments</FormLabel>
+                        <FormLabel>No of Payments<span className='error'>*</span></FormLabel>
                     </Col>
                     <Col xs={8}>
-                        <Form.Control type="text" value={noPaymentsData} onChange={(e) => handleNoPayments(e)} />
+                        <Form.Control type="text" value={noPaymentsData} onChange={(e) => handleNoPayments(e)} required />
                     </Col>
                 </Row>
                 <Row>
                     <Col xs={8}></Col>
                     <Col xs={2} >
-                        <button className='btn btn-primary' onClick={() => handleSubmit}>Calculate </button>
+                        <button className='btn btn-primary' onClick={(e) => handleSubmit(e)}>Calculate </button>
                     </Col>
                     <Col xs={2}>
-                        <button className='btn btn-secondary' onClick={() => clearAll}>Clear</button>
+                        <button className='btn btn-secondary' onClick={(e) => clearAll(e)}>Clear</button>
                     </Col>
                 </Row>
                 <hr />
-                <FormLabel>Month Payment {monthPaymentData == 0 ? '= $ 0.00' : '= $ ' + monthPaymentData.toFixed(2)}</FormLabel>
+                <FormLabel>Month Payment {monthPaymentData === 0 ? '= $ 0.00' : '= $ ' + monthPaymentData.toFixed(2)}</FormLabel>
             </form>
         </div>
     )
